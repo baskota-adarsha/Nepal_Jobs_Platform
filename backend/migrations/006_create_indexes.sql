@@ -1,0 +1,15 @@
+CREATE INDEX idx_jobs_district    ON jobs(district);
+CREATE INDEX idx_jobs_posted_at   ON jobs(posted_at DESC);
+CREATE INDEX idx_jobs_company_id  ON jobs(company_id);
+CREATE INDEX idx_jobs_job_type    ON jobs(job_type);
+CREATE INDEX idx_jobs_experience  ON jobs(experience_level);
+CREATE INDEX idx_jobs_is_active   ON jobs(is_active) WHERE is_active = TRUE;
+CREATE INDEX idx_jobs_salary_min  ON jobs(salary_min) WHERE salary_min IS NOT NULL;
+CREATE INDEX idx_job_skills_skill ON job_skills(skill_id);
+CREATE INDEX idx_job_skills_job   ON job_skills(job_id);
+CREATE INDEX idx_companies_dist   ON companies(district);
+CREATE INDEX idx_companies_ind    ON companies(industry);
+CREATE INDEX idx_skills_category  ON skills(category);
+CREATE INDEX idx_salary_role      ON salary_snapshots(role);
+CREATE INDEX idx_salary_district  ON salary_snapshots(district);
+CREATE INDEX idx_salary_ym        ON salary_snapshots(year DESC, month DESC);
