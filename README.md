@@ -14,7 +14,7 @@ A PostgreSQL database designed to track tech job listings, companies, skills, an
   - [job_skills](#job_skills)
   - [salary_snapshots](#salary_snapshots)
   - [indexes](#indexes)
-- [Entity Relationship](#entity-relationship)
+
 - [Analytical Queries](#analytical-queries)
   - [Top 10 Most In-Demand Skills](#1-top-10-most-in-demand-skills)
   - [Average Salary by District](#2-average-salary-by-district)
