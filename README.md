@@ -1,12 +1,53 @@
-# Nepal Tech Job Market — Database Schema & Analytics
+# Nepal Jobs Platform
 
-A PostgreSQL database designed to track tech job listings, companies, skills, and salary data across Nepal. Built with a focus on the Kathmandu job market.
+A data platform for tracking the Nepal tech job market — job listings, companies, in-demand skills, and salary benchmarks across districts. Built with PostgreSQL, Docker, and Python.
+
+> **Phase 1 complete:** Database schema, migrations, seed data (200+ jobs, 30 companies, 50+ skills), and 5 analytics queries.
+
+---
+
+## Tech Stack
+
+| Layer            | Technology                            |
+| ---------------- | ------------------------------------- |
+| Database         | PostgreSQL 16 (via Docker)            |
+| Migrations       | Raw SQL (`psql`)                      |
+| Seed data        | Python 3, psycopg2, Faker             |
+| Containerisation | Docker + Docker Compose               |
+| Analytics        | SQL — `backend/queries/analytics.sql` |
+
+---
+
+## Project Structure
+
+```
+nepal-jobs-platform/
+├── backend/
+│   ├── migrations/          # SQL migration files (run in order)
+│   │   ├── 001_create_companies.sql
+│   │   ├── 002_create_jobs.sql
+│   │   ├── 003_create_skills.sql
+│   │   ├── 004_create_job_skills.sql
+│   │   ├── 005_create_salary_snapshots.sql
+│   │   └── 006_create_indexes.sql
+│   └── queries/
+│       └── analytics.sql    # 5 analytics queries
+├── pipeline/
+│   ├── seed.py              # Seed script — companies, skills, jobs
+│   └── requirements.txt
+├── frontend/                # (Phase 2)
+├── dashboards/              # (Phase 2)
+├── docker-compose.yml
+├── .env                     # Never committed
+├── .gitignore
+└── README.md
+```
 
 ---
 
 ## Table of Contents
 
-- [Overview](#overview)
+- [Database Overview](#database-overview)
 - [Schema](#schema)
   - [companies](#companies)
   - [jobs](#jobs)
@@ -14,18 +55,18 @@ A PostgreSQL database designed to track tech job listings, companies, skills, an
   - [job_skills](#job_skills)
   - [salary_snapshots](#salary_snapshots)
   - [indexes](#indexes)
-
+- [Entity Relationship](#entity-relationship)
 - [Analytical Queries](#analytical-queries)
   - [Top 10 Most In-Demand Skills](#1-top-10-most-in-demand-skills)
   - [Average Salary by District](#2-average-salary-by-district)
   - [Jobs Posted Per Month (Last 6 Months)](#3-jobs-posted-per-month-last-6-months)
   - [Companies with Most Active Listings](#4-companies-with-most-active-listings)
   - [Skill Demand by Category](#5-skill-demand-by-category)
-- [Setup](#setup)
+- [Local Setup](#local-setup)
 
 ---
 
-## Overview
+## Database Overview
 
 | Table              | Purpose                           |
 | ------------------ | --------------------------------- |
@@ -160,6 +201,20 @@ Performance indexes covering the most common query patterns:
 | `idx_salary_district`  | salary_snapshots | district              |                        |
 | `idx_salary_ym`        | salary_snapshots | year DESC, month DESC |                        |
 
+---
+
+## Entity Relationship
+
+```
+companies (1) ──< jobs (many)
+                    │
+                    └──< job_skills (many) >── skills (1)
+
+salary_snapshots (standalone — aggregated benchmarks)
+```
+
+---
+
 ## Analytical Queries
 
 ### 1. Top 10 Most In-Demand Skills
@@ -265,17 +320,82 @@ ORDER BY num_job_postings DESC;
 
 ---
 
-## Setup
+## Local Setup
 
-Run the migration files in order:
+### 1. Clone the repo
 
 ```bash
-psql -d your_database -f 001_create_companies.sql
-psql -d your_database -f 002_create_jobs.sql
-psql -d your_database -f 003_create_skills.sql
-psql -d your_database -f 004_create_job_skills.sql
-psql -d your_database -f 005_create_salary_snapshots.sql
-psql -d your_database -f 006_create_indexes.sql
+git clone https://github.com/YOUR_USERNAME/nepal-jobs-platform.git
+cd nepal-jobs-platform
 ```
 
-> Requires PostgreSQL 13+ and the `pgcrypto` extension (enabled automatically by `001_create_companies.sql`).
+### 2. Create your `.env` file
+
+```env
+POSTGRES_USER=nepal_admin
+POSTGRES_PASSWORD=your_strong_password
+POSTGRES_DB=nepal_jobs
+DATABASE_URL=postgresql://nepal_admin:your_strong_password@localhost:5432/nepal_jobs
+```
+
+> Never commit this file — it is listed in `.gitignore`.
+
+### 3. Start PostgreSQL with Docker
+
+```bash
+docker-compose up -d
+docker ps   # confirm the container is running
+```
+
+### 4. Run migrations (in order)
+
+```bash
+for f in backend/migrations/*.sql; do
+  docker exec -i nepal-jobs-platform-postgres-1 \
+    psql -U nepal_admin -d nepal_jobs < "$f"
+done
+```
+
+Or run each file individually:
+
+```bash
+docker exec -i nepal-jobs-platform-postgres-1 psql -U nepal_admin -d nepal_jobs < backend/migrations/001_create_companies.sql
+docker exec -i nepal-jobs-platform-postgres-1 psql -U nepal_admin -d nepal_jobs < backend/migrations/002_create_jobs.sql
+docker exec -i nepal-jobs-platform-postgres-1 psql -U nepal_admin -d nepal_jobs < backend/migrations/003_create_skills.sql
+docker exec -i nepal-jobs-platform-postgres-1 psql -U nepal_admin -d nepal_jobs < backend/migrations/004_create_job_skills.sql
+docker exec -i nepal-jobs-platform-postgres-1 psql -U nepal_admin -d nepal_jobs < backend/migrations/005_create_salary_snapshots.sql
+docker exec -i nepal-jobs-platform-postgres-1 psql -U nepal_admin -d nepal_jobs < backend/migrations/006_create_indexes.sql
+```
+
+Verify with `\dt` inside psql — you should see all 5 tables.
+
+### 5. Seed the database
+
+```bash
+cd pipeline
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python seed.py
+```
+
+Verify row counts:
+
+```sql
+SELECT COUNT(*) FROM companies;      -- 30
+SELECT COUNT(*) FROM skills;         -- 50+
+SELECT COUNT(*) FROM jobs;           -- 200+
+SELECT COUNT(*) FROM job_skills;     -- 600+
+```
+
+### 6. Connect and query
+
+```bash
+docker exec -it nepal-jobs-platform-postgres-1 psql -U nepal_admin -d nepal_jobs
+```
+
+Analytics queries are saved in `backend/queries/analytics.sql`.
+
+---
+
+> Requires Docker, Docker Compose, and Python 3.9+. The `pgcrypto` extension is enabled automatically by the first migration.
