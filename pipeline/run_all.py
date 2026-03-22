@@ -1,10 +1,10 @@
 """
 run_all.py — Nepal Jobs Platform
-Runs all scrapers in sequence then ETL. Entry point for the full pipeline.
+Runs merojob scraper + ETL. Entry point for the full pipeline.
 Run:
-  python pipeline/run_all.py           # live scrape all sites + ETL
-  python pipeline/run_all.py --mock    # mock data + ETL (for dev)
-  python pipeline/run_all.py --etl-only  # skip scraping, just run ETL on latest CSVs
+  python pipeline/run_all.py           -- live scrape merojob + ETL
+  python pipeline/run_all.py --mock    -- mock data + ETL (for dev/testing)
+  python pipeline/run_all.py --etl-only  -- skip scraping, just run ETL on latest CSV
 """
 
 import os
@@ -13,8 +13,8 @@ import glob
 import logging
 from datetime import datetime
 
-# Setup logging before anything else
 os.makedirs(os.path.join(os.path.dirname(__file__), '..', 'data'), exist_ok=True)
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -28,54 +28,35 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-# Add pipeline dir to path so imports work
 sys.path.insert(0, os.path.dirname(__file__))
 
 
-def run_scrapers() -> list[str]:
-    """Run all live scrapers. Returns list of CSV paths produced."""
-    from scraper_merojob    import MerojobScraper
-    from scraper_jobaxle    import JobaxleScraper
-    from scraper_kantipurjob import KantipurjobScraper
-    from scraper_froxjob    import FroxjobScraper
-
-    scrapers = [
-        MerojobScraper(),
-        JobaxleScraper(),
-        KantipurjobScraper(),
-        FroxjobScraper(),
-    ]
-
-    csv_paths = []
-    for scraper in scrapers:
-        log.info(f"Running {scraper.SOURCE_NAME} scraper...")
-        try:
-            path = scraper.run()
-            if path:
-                csv_paths.append(path)
-                log.info(f"  {scraper.SOURCE_NAME} → {path}")
-            else:
-                log.warning(f"  {scraper.SOURCE_NAME} produced no data")
-        except Exception as e:
-            log.error(f"  {scraper.SOURCE_NAME} failed: {e}", exc_info=True)
-
-    return csv_paths
+def run_merojob() -> str | None:
+    from scraper_merojob import MerojobScraper
+    log.info("Running merojob scraper...")
+    try:
+        path = MerojobScraper().run()
+        if path:
+            log.info(f"  merojob → {path}")
+        else:
+            log.warning("  merojob produced no data")
+        return path
+    except Exception as e:
+        log.error(f"  merojob failed: {e}", exc_info=True)
+        return None
 
 
-def run_mock() -> list[str]:
-    """Generate mock data instead of live scraping."""
+def run_mock() -> str:
     from scraper_mock import generate_mock_data
-    log.info("Generating mock data...")
+    log.info("Generating mock data (300 jobs)...")
     path = generate_mock_data(300)
-    return [path]
+    return path
 
 
 def run_etl(csv_paths: list[str]):
-    """Run ETL on all CSVs produced today."""
     from etl import run_etl as etl_func
 
     if not csv_paths:
-        # Find all today's CSVs
         raw_dir   = os.path.join(os.path.dirname(__file__), '..', 'data', 'raw')
         today_str = datetime.now().strftime("%Y-%m-%d")
         csv_paths = glob.glob(os.path.join(raw_dir, f"jobs_{today_str}_*.csv"))
@@ -100,6 +81,7 @@ def main():
 
     log.info("=" * 60)
     log.info(f"Nepal Jobs Pipeline — {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    log.info(f"Sources: merojob.com (API)")
     log.info("=" * 60)
 
     csv_paths = []
@@ -107,14 +89,15 @@ def main():
     if not etl_only:
         if use_mock:
             log.info("Mode: MOCK")
-            csv_paths = run_mock()
+            csv_paths = [run_mock()]
         else:
-            log.info("Mode: LIVE SCRAPE (all sources)")
-            csv_paths = run_scrapers()
-
-            if not csv_paths:
-                log.warning("All live scrapers failed — falling back to mock data")
-                csv_paths = run_mock()
+            log.info("Mode: LIVE — merojob.com")
+            path = run_merojob()
+            if path:
+                csv_paths = [path]
+            else:
+                log.warning("Live scrape failed — falling back to mock data")
+                csv_paths = [run_mock()]
 
     run_etl(csv_paths)
 
