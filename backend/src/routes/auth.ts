@@ -3,8 +3,9 @@ import { UserRepository } from "../repositories/UserRepository";
 import z from "zod";
 import { AppError } from "../middleware/errorHandler";
 import bcrypt from "bcryptjs";
-import { generateTokens } from "../middleware/auth";
+import { generateTokens, verifyRefreshToken } from "../middleware/auth";
 import { ApiResponse, AuthTokens } from "../types";
+import { authLimiter } from "../middleware/ratelimiter";
 const router = Router();
 const repo = new UserRepository();
 const loginSchema = z.object({
@@ -18,6 +19,7 @@ const registerSchema = z.object({
 });
 router.post(
   "/register",
+  authLimiter,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { email, name, password } = registerSchema.parse(req.body);
@@ -44,3 +46,80 @@ router.post(
     }
   },
 );
+router.post(
+  "/login",
+  authLimiter,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { email, password } = loginSchema.parse(req.body);
+      const user = await repo.findByEmail(email);
+      if (!user) {
+        throw new AppError(401, "Invalid email or password");
+      }
+      const passwordMatch = await bcrypt.compare(password, user.password_hash);
+      if (!passwordMatch) {
+        throw new AppError(401, "Invalid email or password");
+      }
+      const tokens = generateTokens({
+        userId: user.id,
+        email: user.email,
+        role: user.role,
+      });
+      const response: ApiResponse<AuthTokens> = {
+        success: true,
+        message: "Login Successfull",
+        data: tokens,
+      };
+      res.json(response);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+router.post(
+  "/refresh",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { refreshToken } = z
+        .object({
+          refreshToken: z.string().min(1, "Refresh token required"),
+        })
+        .parse(req.body);
+
+      const payload = verifyRefreshToken(refreshToken);
+      const user = await repo.findById(payload.userId);
+      if (!user) {
+        throw new AppError(401, "User not found");
+      }
+      const tokens = generateTokens({
+        userId: user.id,
+        email: user.email,
+        role: user.role,
+      });
+      res.json({
+        success: true,
+        message: "Token refreshed",
+        data: tokens,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+router.get("/me", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const user = await repo.findById(req.user!.userId);
+    if (!user) {
+      throw new AppError(404, "User not found");
+    }
+    const { password_hash, ...safeUser } = user;
+    res.json({
+      success: true,
+      message: "User Fetched",
+      data: safeUser,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+export default router;

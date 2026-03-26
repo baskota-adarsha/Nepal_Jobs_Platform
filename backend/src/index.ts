@@ -1,6 +1,7 @@
+import "dotenv/config";
 import { testConnection } from "./config/db";
 import { env } from "./config/env";
-
+import app from "./app";
 const PORT = parseInt(env.PORT, 10);
 const start = async () => {
   try {
@@ -12,7 +13,8 @@ const start = async () => {
       console.log(` Environment:   ${env.NODE_ENV}\n`);
     });
   } catch (error) {
-    console.error("Failed to start server:", err);
+    console.error("Failed to start server:", error);
     process.exit(1);
   }
 };
+start();

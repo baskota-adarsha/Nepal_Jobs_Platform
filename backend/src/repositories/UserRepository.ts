@@ -21,15 +21,10 @@ export class UserRepository {
     return rows[0];
   }
   async emailExists(email: string): Promise<boolean> {
-    const result = await queryOne<{ count: number }>(
-      `SELECT COUNT(*) AS count FROM users WHERE email = $1`,
+    const result = await queryOne<{ count: string }>(
+      `SELECT COUNT(*)::text AS count FROM users WHERE email = $1`,
       [email],
     );
-
-    if (!result || !result.count) {
-      return false;
-    }
-
-    return true;
+    return parseInt(result?.count ?? "0", 10) > 0;
   }
 }
