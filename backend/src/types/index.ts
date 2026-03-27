@@ -32,6 +32,7 @@ export interface Company {
 export interface CompanyWithJobCount extends Company {
   job_count: number;
 }
+
 //Skill
 
 export interface Skill {
