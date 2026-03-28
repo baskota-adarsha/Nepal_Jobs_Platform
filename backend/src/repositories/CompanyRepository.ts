@@ -61,7 +61,7 @@ export class CompanyRepository {
         left join 
         jobs j on c.id=j.company_id and j.is_active=true
         where c.is_active=true
-        GROUP BY c.industry,
+        GROUP BY c.industry
         ORDER BY job_count DESC
         
         `,
