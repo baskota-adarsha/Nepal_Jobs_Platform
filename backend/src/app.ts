@@ -6,6 +6,9 @@ import { apiLimiter } from "./middleware/ratelimiter";
 import authRoutes from "./routes/auth";
 import { errorHandler, notFound } from "./middleware/errorHandler";
 import companyRoutes from "./routes/companies";
+import jobRoutes from "./routes/jobs";
+import skillRoutes from "./routes/skills";
+import salariesRoutes from "./routes/salaries";
 const app = express();
 app.use(helmet());
 app.use(
@@ -18,8 +21,19 @@ app.use(
 app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use("/api", apiLimiter);
+app.get("/health", (_req, res) => {
+  res.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    service: "nepal-jobs-api",
+  });
+});
 app.use("/api/auth", authRoutes);
+
 app.use("/api/companies", companyRoutes);
+app.use("/api/jobs", jobRoutes);
+app.use("/api/skills", skillRoutes);
+app.use("/api/salaries", salariesRoutes);
 app.use(notFound);
 app.use(errorHandler);
 export default app;
