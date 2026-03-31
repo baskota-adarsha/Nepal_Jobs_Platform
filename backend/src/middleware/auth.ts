@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "../config/env";
-import { TokenPayload, ApiResponse } from "../types";
+import { TokenPayload } from "../types";
 import { AppError } from "./errorHandler";
 
 export const authenticate = (
@@ -9,12 +9,13 @@ export const authenticate = (
   res: Response,
   next: NextFunction,
 ): void => {
-  const authHeader = req.headers.authorization;
+  const token =
+    req.cookies?.access_token ??
+    req.headers.authorization?.replace("Bearer ", "");
 
-  if (!authHeader?.startsWith("Bearer")) {
-    throw new AppError(401, "No Token Provided");
+  if (!token) {
+    throw new AppError(401, "Not authenticated");
   }
-  const token = authHeader.split(" ")[1];
   try {
     const decoded = jwt.verify(token, env.JWT_SECRET);
     req.user = decoded as TokenPayload;

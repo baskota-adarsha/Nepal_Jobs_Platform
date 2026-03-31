@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction, Router } from "express";
 import { ApiResponse, JobFilters } from "../types";
-import { success, z } from "zod";
+import { z } from "zod";
 import { JobRepository } from "../repositories/JobRepository";
 const router = Router();
 const repo = new JobRepository();

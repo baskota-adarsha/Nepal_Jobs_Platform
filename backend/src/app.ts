@@ -9,17 +9,20 @@ import companyRoutes from "./routes/companies";
 import jobRoutes from "./routes/jobs";
 import skillRoutes from "./routes/skills";
 import salariesRoutes from "./routes/salaries";
+import cookieParser from "cookie-parser";
 const app = express();
 app.use(helmet());
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN ?? "*",
+    origin: process.env.FRONTEND_URL ?? "http://localhost:3000",
+    credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   }),
 );
 app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 app.use("/api", apiLimiter);
 app.get("/health", (_req, res) => {
   res.json({
